@@ -56,7 +56,7 @@ map_info["id"] = map_info["AREA_NAME"].apply(lambda x: area_id_map[x])
 # App layout
 app.layout = html.Div([
 
-    html.Div([html.H1("Criminal Activity in LA City 2016-2023", style={"text-align": "center"}),
+    html.Div([html.H1("Criminal Activity in LA City 2018-2023", style={"text-align": "center"}),
               dcc.Dropdown(id="select_cat",
                            options=[
                                {"label": "Arrests", "value": "Arrests"},
@@ -100,16 +100,14 @@ app.layout = html.Div([
                            value=map_info["CRIME_GROUP"].unique()
                            ),
               html.Br(),
-              dcc.RangeSlider(2016, 2023, 1, count=1,
-                              marks={2016: "2016",
-                                     2017: "2017",
-                                     2018: "2018",
+              dcc.RangeSlider(2018, 2023, 1, count=1,
+                              marks={2018: "2018",
                                      2019: "2019",
                                      2020: "2020",
                                      2021: "2021",
                                      2022: "2022",
                                      2023: "2023"},
-                              value=[2016, 2023], id="select_year"),
+                              value=[2018, 2023], id="select_year"),
 
               html.Div(id="title_one", children=[],
                        style={"text-align": "center"}),
