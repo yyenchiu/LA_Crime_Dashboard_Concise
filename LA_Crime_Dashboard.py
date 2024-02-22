@@ -299,7 +299,7 @@ def generate_graphs(cat_selected, year_selected, clickData, group_selected):
     df = arrest_clean
 
     # See if this resolves issue of render running out of RAM
-    timel.sleep(5)
+    time.sleep(5)
     # Fiilter data
     df_filtered = pd.DataFrame(df[(df["AREA_NAME"] == area) & (df["YEAR"] >= year_selected[0]) &
                                  (df["YEAR"] <= year_selected[1]) & (df["CRIME_GROUP"].isin(group_selected))])
