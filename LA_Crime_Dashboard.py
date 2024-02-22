@@ -32,7 +32,6 @@ arrest_clean_f = pd.read_csv("arrest_clean_f.csv", index_col=0)
 arrest_clean_g = pd.read_csv("arrest_clean_g.csv", index_col=0)
 arrest_clean_h = pd.read_csv("arrest_clean_h.csv", index_col=0)
 
-arrest_clean = pd.read_csv("arrest_present_clean.csv")
 map_info = pd.read_csv("map_info_more_detailed_present.csv")
 map_gj = json.load(open("LAPD_Divisions.geojson", "r"))
 
