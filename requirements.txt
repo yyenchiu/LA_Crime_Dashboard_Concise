@@ -2,5 +2,6 @@ numpy
 pandas
 plotly
 dash==2.9.2
+dash_bootstrap_components
 wordcloud
 gunicorn
