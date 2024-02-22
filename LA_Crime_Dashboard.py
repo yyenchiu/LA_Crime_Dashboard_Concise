@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 import json
 
-pd.set_option('display.max_columns', None)
-
 import plotly.graph_objects as go
 import plotly.express as px
 from wordcloud import WordCloud as wc
