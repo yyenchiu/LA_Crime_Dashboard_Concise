@@ -10,14 +10,18 @@ from wordcloud import WordCloud as wc
 
 import dash
 from dash import dcc
+import dash_bootstrap_components as dbc
 from dash import html
 from dash.dependencies import Input, Output
+
+import time
 
 external_stylesheets = {
     'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'}
 
-app = dash.Dash(__name__)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
+
 # bootstrap themes: bootswatch.com
 
 # ---------------------------------------------------------------------------------------
@@ -52,7 +56,7 @@ map_info["id"] = map_info["AREA_NAME"].apply(lambda x: area_id_map[x])
 # App layout
 app.layout = html.Div([
 
-    html.Div([html.H1("Criminal Activity in LA City 2016-Present", style={"text-align": "center"}),
+    html.Div([html.H1("Criminal Activity in LA City 2016-2023", style={"text-align": "center"}),
               dcc.Dropdown(id="select_cat",
                            options=[
                                {"label": "Arrests", "value": "Arrests"},
@@ -110,46 +114,46 @@ app.layout = html.Div([
               html.Div(id="title_one", children=[],
                        style={"text-align": "center"}),
               ]),
-    html.Div([
-        html.Div([
-            dcc.Graph(id="bar_total", figure={},
-                      style={"height": 600})
-        ], className="three columns"),
-        html.Div([
-            dcc.Graph(id="my_map", figure={},
-                      style={"height": 600})
-        ], className="six columns"),
-        # "six columns" explained at https://community.plotly.com/t/not-really-getting-the-six-columns-thing/38751
-        html.Div([
-            dcc.Graph(id="bar_pct", figure={},
-                      style={"height": 600})
-        ], className="three columns"),
-    ], className="row"),
-
-    html.Div(id="title_two", children=[],
-             style={"text-align": "center"}),
-    html.Div([
-        html.Div([
-            dcc.Graph(id="g1", figure={}, style={"height": 600})
-            ], className="four columns"),
-        html.Div([
-            dcc.Graph(id="g2", figure={}, style={"height": 600})
-        ], className="four columns"),
-        html.Div([
-            dcc.Graph(id="g3", figure={}, style={"height": 600})
-        ], className="four columns")], className="row"),
-
-    html.Div([
-        dcc.Graph(id="g4", figure={}, style={"height": 600})
-    ]),
-    html.Div([
-        html.Div([
-            dcc.Graph(id="g5", figure={}, style={"height": 600})
-        ], className="eight columns"),
-        html.Div([
-            dcc.Graph(id="g6", figure={}, style={"height": 600})
-        ], className="four columns")], className="row")
-
+    html.Div(
+        [
+           dbc.Row(
+               dbc.Stack(
+                   [
+                       dcc.Graph(id="bar_total", figure={}, style={"width": "30%"}),
+                       dcc.Graph(id="my_map", figure={}, style={"width": "40%"}),
+                       dcc.Graph(id="bar_pct", figure={}, style={"width": "30%"})
+                   ],
+                   direction="horizontal"
+               ),
+               align="start"
+           ),
+            dbc.Row(html.Div(id="title_two", children=[],
+                     style={"text-align": "center"})
+                   ),
+            dbc.Row(
+                dbc.Stack(
+                    [
+                        dcc.Graph(id="g1", figure={}, style={"width": "33%"}),
+                        dcc.Graph(id="g2", figure={}, style={"width": "33%"}),
+                        dcc.Graph(id="g3", figure={}, style={"width": "33%"})
+                    ],
+                    direction="horizontal"
+                ),
+                align="start"
+           ),
+            dbc.Row(html.Div(dcc.Graph(id="g4", figure={}))),
+            dbc.Row(
+                dbc.Stack(
+                    [
+                        dcc.Graph(id="g5", figure={}, style={"width": "60%"}),
+                        dcc.Graph(id="g6", figure={}, style={"width": "40%"})
+                    ],
+                    direction="horizontal"
+                ),
+                align="start"
+           ),
+        ]
+    )
 ])
 
 
@@ -157,7 +161,16 @@ app.layout = html.Div([
 # Connect Plotly graphs with Dash Components
 @app.callback(
     [Output(component_id="title_one", component_property="children"),
-     Output(component_id="my_map", component_property="figure")],
+     Output(component_id="my_map", component_property="figure"),
+     Output(component_id="bar_total", component_property="figure"),
+     Output(component_id="bar_pct", component_property="figure"),
+     Output(component_id="title_two", component_property="children"),
+     Output(component_id="g1", component_property="figure"),
+     Output(component_id="g2", component_property="figure"),
+     Output(component_id="g3", component_property="figure"),
+     Output(component_id="g4", component_property="figure"),
+     Output(component_id="g5", component_property="figure"),
+     Output(component_id="g6", component_property="figure")],
     Input(component_id="select_cat", component_property="value"),
     Input(component_id="select_year", component_property="value"),
     Input(component_id="select_group", component_property="value"),
@@ -165,19 +178,27 @@ app.layout = html.Div([
 )
 def generate_graph(cat_selected, year_selected, group_selected, clickData):
 
-    container = f"Data: {cat_selected} in LA from {year_selected[0]} to {year_selected[1]}"
+    container1 = f"Data: {cat_selected} in LA from {year_selected[0]} to {year_selected[1]}"
+    
+    if clickData is None:
+        area = "TOPANGA"
+    else:
+        area = json.loads(json.dumps(clickData))["points"][0]["hovertext"]
 
-    cur_group = map_info[(map_info["YEAR"] >= year_selected[0]) &
-                         (map_info["YEAR"] <= year_selected[1]) &
-                         (map_info["CRIME_GROUP"].isin(group_selected))].groupby(
-        ["AREA_NAME", "id", "SqMile", "Population"]).aggregate(
+    container2 = f"Data: {cat_selected} in {area} from {year_selected[0]} to {year_selected[1]}"
+
+    filtered = map_info[(map_info["YEAR"] >= year_selected[0]) & (map_info["YEAR"] <= year_selected[1])
+                & (map_info["CRIME_GROUP"].isin(group_selected))]
+    cur_group = filtered.groupby(["AREA_NAME", "id", "SqMile", "Population"]).aggregate(
         {"Arrests": "sum", "Reports": "sum", "Arrests_Per_SqMile": "sum", "Arrests_Per_10k_Pop": "sum",
          "Reports_Per_SqMile": "sum", "Reports_Per_10k_Pop": "sum"}).reset_index()
 
     hover = ["Population", "SqMile"]
     hover.append(cat_selected)
 
-    fig = px.choropleth_mapbox(cur_group,
+    bar_total = pd.DataFrame(filtered.groupby("AREA_NAME")[cat_selected].sum()).reset_index()
+
+    fig1 = px.choropleth_mapbox(cur_group,
                                locations="id",
                                geojson=map_gj,
                                color=cat_selected,
@@ -190,111 +211,50 @@ def generate_graph(cat_selected, year_selected, group_selected, clickData):
                                title="Regional Data",
                                mapbox_style="open-street-map",
                                center={"lat": 34, "lon": -118.5},
-                               zoom=8.3,
+                               zoom=8,
                                opacity=0.7,
                                color_continuous_scale="thermal"
                                )
-    fig.update_layout(title_x=0.5, title_xanchor="center")
-    return container, fig
-
-
-@app.callback(
-    Output(component_id="bar_total", component_property="figure"),
-    Output(component_id="bar_pct", component_property="figure"),
-    Input(component_id="select_cat", component_property="value"),
-    Input(component_id="select_year", component_property="value"),
-    Input(component_id="select_group", component_property="value")
-)
-def generate_bar_pct_change(cat_selected, year_selected, group_selected):
-    cat = cat_selected
-    start = year_selected[0]
-    end = year_selected[1]
-
-    filtered = map_info[(map_info["YEAR"] >= start) & (map_info["YEAR"] <= end)
-                        & (map_info["CRIME_GROUP"].isin(group_selected))]
-    bar_total = pd.DataFrame(filtered.groupby("AREA_NAME")[cat].sum()).reset_index()
-
-    fig1 = px.bar(bar_total,
-                 x=cat,
-                 y="AREA_NAME",
-                 title=f"Total {cat}")
-
     fig1.update_layout(title_x=0.5, title_xanchor="center")
+    
+    fig2 = px.bar(bar_total,
+                 x=cat_selected,
+                 y="AREA_NAME",
+                 title=f"Total {cat_selected}")
 
-    grp_start = map_info[(map_info["YEAR"] == start) &
+    fig2.update_layout(title_x=0.5, title_xanchor="center")
+
+    grp_start = map_info[(map_info["YEAR"] == year_selected[0]) &
                          (map_info["CRIME_GROUP"].isin(group_selected))].groupby(
-        ["AREA_NAME"]).agg({cat: "sum"})
+        ["AREA_NAME"]).agg({cat_selected: "sum"})
 
-    grp_end = map_info[(map_info["YEAR"] == end) &
+    grp_end = map_info[(map_info["YEAR"] == year_selected[1]) &
                        (map_info["CRIME_GROUP"].isin(group_selected))].groupby(
-        ["AREA_NAME"]).agg({cat: "sum"})
+        ["AREA_NAME"]).agg({cat_selected: "sum"})
 
-    change = pd.DataFrame(round((grp_end[cat] - grp_start[cat]) / grp_start[cat] * 100, 2)).reset_index()
+    change = pd.DataFrame(round((grp_end[cat_selected] - grp_start[cat_selected]) / 
+                                grp_start[cat_selected] * 100, 2)).reset_index()
     change["colors"] = ""
     for i in range(len(change)):
-        if change.loc[i, cat] > 0:
+        if change.loc[i, cat_selected] > 0:
             change.loc[i, "colors"] = "Red"
         else:
             change.loc[i, "colors"] = "Blue"
 
-    # print(change)
-
-    fig2 = go.Figure(data=(go.Bar(
-        x=change[cat],
+    fig3 = go.Figure(data=(go.Bar(
+        x=change[cat_selected],
         y=change["AREA_NAME"],
         marker_color=change["colors"],
         orientation="h",
         hoverinfo="text+x")),
         layout=(go.Layout(
-            title=f"% Change in Annual {cat}",
+            title=f"% Change in Annual {cat_selected}",
             xaxis={"title": "% Decrease/Increase"},
             yaxis={"title": "Area Name"}
         )))
 
-    fig2.update_layout(title_x=0.5, title_xanchor="center")
-
-    return fig1, fig2
-
-
-@app.callback(
-    Output(component_id="title_two", component_property="children"),
-    Input(component_id="select_cat", component_property="value"),
-    Input(component_id="select_year", component_property="value"),
-    Input(component_id="my_map", component_property="clickData")
-)
-def generate_title_two(cat_selected, year_selected, clickData):
-    if clickData is None:
-        area = "TOPANGA"
-    else:
-        area = json.loads(json.dumps(clickData))["points"][0]["hovertext"]
-
-    cat = cat_selected
-
-    container = f"Data: {cat} in {area} from {year_selected[0]} to {year_selected[1]}"
-
-    return container
-
-
-@app.callback(
-    Output(component_id="g1", component_property="figure"),
-    Output(component_id="g2", component_property="figure"),
-    Output(component_id="g3", component_property="figure"),
-    Output(component_id="g4", component_property="figure"),
-    Output(component_id="g5", component_property="figure"),
-    Output(component_id="g6", component_property="figure"),
-    Input(component_id="select_cat", component_property="value"),
-    Input(component_id="select_year", component_property="value"),
-    Input(component_id="my_map", component_property="clickData"),
-    Input(component_id="select_group", component_property="value")
-)
-def generate_graphs(cat_selected, year_selected, clickData, group_selected):
-
-    # Create filter params
-    if clickData is None:
-        area = "TOPANGA"
-    else:
-        area = json.loads(json.dumps(clickData))["points"][0]["hovertext"]
-
+    fig3.update_layout(title_x=0.5, title_xanchor="center")
+    
     df = arrest_clean
 
     # Fiilter data
@@ -303,7 +263,7 @@ def generate_graphs(cat_selected, year_selected, clickData, group_selected):
 
 
     # Histogram showing age and sex
-    fig1 = px.histogram(df_filtered,
+    fig4 = px.histogram(df_filtered,
                        x="AGE",
                        color="SEX",
                        pattern_shape="AGE_GROUP",
@@ -313,12 +273,12 @@ def generate_graphs(cat_selected, year_selected, clickData, group_selected):
                        title="Age Distribution by Sex",
                        )
 
-    fig1.update_layout(title_x=0.5, title_xanchor="center",
+    fig4.update_layout(title_x=0.5, title_xanchor="center",
                        legend={"yanchor": "top", "xanchor": "right"})
 
 
     # Histogram showing time of day
-    fig2 = px.histogram(df_filtered,
+    fig5 = px.histogram(df_filtered,
                        x="TIME",
                        color="DAY_NIGHT",
                        color_discrete_sequence=["blue", "red"],
@@ -326,20 +286,20 @@ def generate_graphs(cat_selected, year_selected, clickData, group_selected):
                        title="Time Distribution",
                        )
 
-    fig2.update_layout(title_x=0.5, title_xanchor="center",
+    fig5.update_layout(title_x=0.5, title_xanchor="center",
                        legend={"yanchor": "top", "xanchor": "right"})
 
 
     # Histogram showing day of week
     df_bar_weekday = pd.DataFrame(df_filtered.groupby("WEEKDAY")["ID"].count()).rename(columns={"ID": "COUNT"}).sort_values("COUNT").reset_index()
-    fig3 = px.bar(df_bar_weekday,
+    fig6 = px.bar(df_bar_weekday,
                  x="WEEKDAY",
                  y="COUNT",
                  title="Weekdays Distribution")
 
-    fig3.update_layout(title_x=0.5, title_xanchor="center")
+    fig6.update_layout(title_x=0.5, title_xanchor="center")
 
-    fig3.update_xaxes(tickmode="array",
+    fig6.update_xaxes(tickmode="array",
                      tickvals=np.arange(1, 8),
                      ticktext=["Mon", "Tues", "Wed", "Thurs", "Fri", "Sat", "Sun"])
 
@@ -349,12 +309,12 @@ def generate_graphs(cat_selected, year_selected, clickData, group_selected):
     df_filtered["DATE"] = pd.to_datetime(df_filtered["DATE"])
     df_month = pd.DataFrame(df_filtered.groupby("DATE")["ID"].count())
     df_month = pd.DataFrame(df_month["ID"].resample("M").sum()).reset_index().rename(columns={"ID": "COUNT"})
-    fig4 = px.line(df_month,
+    fig7 = px.line(df_month,
                   x="DATE",
                   y="COUNT",
                   title="Monthly Total")
 
-    fig4.update_layout(title_x=0.5, title_xanchor="center")
+    fig7.update_layout(title_x=0.5, title_xanchor="center")
 
     # Bar graph of crime groups
     df_bar = pd.DataFrame(df_filtered.groupby("CRIME_GROUP")["ID"].count()).rename(columns={"DATE": "MONTH", "ID": "COUNT"}).sort_values(
@@ -363,7 +323,7 @@ def generate_graphs(cat_selected, year_selected, clickData, group_selected):
     df_bar["PERCENTAGE"] = ""
     df_bar.PERCENTAGE = round(df_bar.COUNT / total * 100, 2)
 
-    fig5 = px.bar(df_bar,
+    fig8 = px.bar(df_bar,
                  x="COUNT",
                  y="CRIME_GROUP",
                  title="Crime Group Distribution",
@@ -373,7 +333,7 @@ def generate_graphs(cat_selected, year_selected, clickData, group_selected):
                              "PERCENTAGE": True
                              }
                  )
-    fig5.update_layout(title_x=0.5, title_xanchor="center")
+    fig8.update_layout(title_x=0.5, title_xanchor="center")
 
 
     # Word cloud of specific crimes
@@ -381,14 +341,13 @@ def generate_graphs(cat_selected, year_selected, clickData, group_selected):
     f = df_filtered["CHARGE_DESCRIPTION"].value_counts()
     wordcloud = wc(width = 2000, height = 1000, colormap="GnBu").generate_from_frequencies(f[f > 200])
 
-    fig6 = px.imshow(wordcloud, title="Most Common Incident Descriptions")
-    fig6.update_traces(hovertemplate=None,
+    fig9 = px.imshow(wordcloud, title="Most Common Incident Descriptions")
+    fig9.update_traces(hovertemplate=None,
                       hoverinfo="skip")
-    fig6.update_xaxes(visible=False)
-    fig6.update_yaxes(visible=False)
-
-    return fig1, fig2, fig3, fig4, fig5, fig6
-
+    fig9.update_xaxes(visible=False)
+    fig9.update_yaxes(visible=False)
+    
+    return container1, fig1, fig2, fig3, container2, fig4, fig5, fig6, fig7, fig8, fig9
 
 if __name__ == "__main__":
     app.run_server(debug=False)
