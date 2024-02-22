@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import json
 
+pd.set_option('display.max_columns', None)
+
 import plotly.graph_objects as go
 import plotly.express as px
 from wordcloud import WordCloud as wc
@@ -16,7 +18,6 @@ external_stylesheets = {
 
 app = dash.Dash(__name__)
 server = app.server
-
 # bootstrap themes: bootswatch.com
 
 # ---------------------------------------------------------------------------------------
@@ -30,31 +31,15 @@ arrest_clean_e = pd.read_csv("arrest_clean_e.csv", index_col=0)
 arrest_clean_f = pd.read_csv("arrest_clean_f.csv", index_col=0)
 arrest_clean_g = pd.read_csv("arrest_clean_g.csv", index_col=0)
 arrest_clean_h = pd.read_csv("arrest_clean_h.csv", index_col=0)
-crime_clean_a = pd.read_csv("crime_clean_a.csv", index_col=0)
-crime_clean_b = pd.read_csv("crime_clean_b.csv", index_col=0)
-crime_clean_c = pd.read_csv("crime_clean_c.csv", index_col=0)
-crime_clean_d = pd.read_csv("crime_clean_d.csv", index_col=0)
-crime_clean_e = pd.read_csv("crime_clean_e.csv", index_col=0)
-crime_clean_f = pd.read_csv("crime_clean_f.csv", index_col=0)
-crime_clean_g = pd.read_csv("crime_clean_g.csv", index_col=0)
-crime_clean_h = pd.read_csv("crime_clean_h.csv", index_col=0)
-charge_ref = pd.read_csv("charge_ref.csv", index_col=0)
-arrest_clean = pd.read_csv("arrest_present_clean.csv")
+
 map_info = pd.read_csv("map_info_more_detailed_present.csv")
 map_gj = json.load(open("LAPD_Divisions.geojson", "r"))
 
 arrest_clean = pd.concat([arrest_clean_a, arrest_clean_b, arrest_clean_c, arrest_clean_d,
                          arrest_clean_e, arrest_clean_f, arrest_clean_g, arrest_clean_h], axis=1)
-crime_clean = pd.concat([crime_clean_a, crime_clean_b, crime_clean_c, crime_clean_d,
-                         crime_clean_e, crime_clean_f, crime_clean_g, crime_clean_h], axis=1)
-crime_clean = crime_clean.merge(charge_ref, left_on="CHARGE_DESCRIPTION", right_on="num")
-crime_clean.drop(["CHARGE_DESCRIPTION", "num"], axis=1, inplace=True)
-crime_clean.rename(columns={"label": "CHARGE_DESCRIPTION"}, inplace=True)
 
 arrest_clean["AREA_NAME"] = arrest_clean.AREA_NAME.apply(lambda x: x.upper())
-crime_clean["AREA_NAME"] = crime_clean.AREA_NAME.apply(lambda x: x.upper())
 arrest_clean.replace({"WEST LA": "WEST LOS ANGELES", "N HOLLYWOOD": "NORTH HOLLYWOOD"}, inplace=True)
-crime_clean.replace({"WEST LA": "WEST LOS ANGELES", "N HOLLYWOOD": "NORTH HOLLYWOOD"}, inplace=True)
 
 area_id_map = {}
 for feature in map_gj["features"]:
@@ -67,15 +52,12 @@ map_info["id"] = map_info["AREA_NAME"].apply(lambda x: area_id_map[x])
 # App layout
 app.layout = html.Div([
 
-    html.Div([html.H1("Criminal Activity in LA City 2010-Present", style={"text-align": "center"}),
+    html.Div([html.H1("Criminal Activity in LA City 2016-Present", style={"text-align": "center"}),
               dcc.Dropdown(id="select_cat",
                            options=[
                                {"label": "Arrests", "value": "Arrests"},
                                {"label": "Arrests_Per_10k_Pop", "value": "Arrests_Per_10k_Pop"},
-                               {"label": "Arrests_Per_SqMile", "value": "Arrests_Per_SqMile"},
-                               {"label": "Reports", "value": "Reports"},
-                               {"label": "Reports_Per_10k_Pop", "value": "Reports_Per_10k_Pop"},
-                               {"label": "Reports_Per_SqMile", "value": "Reports_Per_SqMile"}],
+                               {"label": "Arrests_Per_SqMile", "value": "Arrests_Per_SqMile"}],
                            multi=False,
                            value="Arrests",
                            style={"width": "40%"}
@@ -114,14 +96,8 @@ app.layout = html.Div([
                            value=map_info["CRIME_GROUP"].unique()
                            ),
               html.Br(),
-              dcc.RangeSlider(2010, 2023, 1, count=1,
-                              marks={2010: "2010",
-                                     2011: "2011",
-                                     2012: "2012",
-                                     2013: "2013",
-                                     2014: "2014",
-                                     2015: "2015",
-                                     2016: "2016",
+              dcc.RangeSlider(2016, 2023, 1, count=1,
+                              marks={2016: "2016",
                                      2017: "2017",
                                      2018: "2018",
                                      2019: "2019",
@@ -129,7 +105,7 @@ app.layout = html.Div([
                                      2021: "2021",
                                      2022: "2022",
                                      2023: "2023"},
-                              value=[2010, 2023], id="select_year"),
+                              value=[2016, 2023], id="select_year"),
 
               html.Div(id="title_one", children=[],
                        style={"text-align": "center"}),
@@ -292,10 +268,7 @@ def generate_title_two(cat_selected, year_selected, clickData):
     else:
         area = json.loads(json.dumps(clickData))["points"][0]["hovertext"]
 
-    if cat_selected in ["Arrests", "Arrests_Per_10k_Pop", "Arrests_Per_SqMile"]:
-        cat = "Arrests"
-    else:
-        cat = "Reports of Crime"
+    cat = cat_selected
 
     container = f"Data: {cat} in {area} from {year_selected[0]} to {year_selected[1]}"
 
@@ -322,12 +295,7 @@ def generate_graphs(cat_selected, year_selected, clickData, group_selected):
     else:
         area = json.loads(json.dumps(clickData))["points"][0]["hovertext"]
 
-    if (cat_selected == "Arrests") or (cat_selected == "Arrests_Per_10k_Pop") or (
-            cat_selected == "Arrests_Per_SqMile"):
-        df = arrest_clean
-    elif (cat_selected == "Reports") or (cat_selected == "Reports_Per_10k_Pop") or (
-            cat_selected == "Reports_Per_SqMile"):
-        df = crime_clean
+    df = arrest_clean
 
     # Fiilter data
     df_filtered = pd.DataFrame(df[(df["AREA_NAME"] == area) & (df["YEAR"] >= year_selected[0]) &
